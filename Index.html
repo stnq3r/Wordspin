@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WordSpin - German Word Carousel</title>
+    <!-- Inline Favicon (Base64 SVG) -->
+    <link rel="icon" type="image/svg+xml" 
+          href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><circle cx="256" cy="256" r="240" fill="black"/><g transform="translate(256,256)"><circle r="200" fill="none" stroke="%23ffffff" stroke-width="20" stroke-dasharray="30 20"/><circle r="150" fill="none" stroke="%2300c3ff" stroke-width="14" stroke-dasharray="20 15" transform="rotate(30)"/><text x="0" y="20" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="60" fill="%23ffffff">W</text></g></svg>'>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Logo Header */
+        .logo-header {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+        }
+        .logo-header svg {
+            width: 38px;
+            height: 38px;
+        }
+        .logo-header span {
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+        }
+
+        /* Start Button (Mobile Only) */
+        #startButton {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            z-index: 999;
+            display: none;
+        }
+
+        /* Previous Word Box */
+        .previous-box {
+            background: rgba(200, 200, 200, 0.2);
+            border: 1px solid rgba(200, 200, 200, 0.4);
+            border-radius: 8px;
+            padding: 5px 12px;
+            font-size: clamp(14px, 3vw, 20px);
+            opacity: 0;
+            transition: opacity 2s ease-out;
+            margin-bottom: 30px;
+            color: rgba(255,255,255,0.7);
+            min-width: 200px;
+        }
+
+        .word-container { position: relative; display: inline-block; margin-top: 20px; }
+        .word-label { position: absolute; top: -28px; left: 0; font-size: clamp(14px, 2.5vw, 20px); font-weight: bold; opacity: 0; }
+        .word {
+            font-size: clamp(40px, 10vw, 80px);
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.1);
+            border: 3px solid rgba(255, 255, 255, 0.5);
+            border-radius: 12px;
+            padding: 15px 30px;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            opacity: 0;
+            transform: scale(0.8);
+        }
+        .translation { font-size: clamp(20px, 6vw, 40px); margin-top: 20px; opacity: 0; }
+
+        /* Animations */
+        .animate { animation: fadeInScale 0.7s ease forwards; }
+        .fade-text { animation: fadeIn 0.7s ease forwards; }
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.8);} to { opacity: 1; transform: scale(1);} }
+        @keyframes fadeIn { from { opacity: 0;} to { opacity: 1;} }
+
+        /* Desktop Controls */
+        .controls {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .sound-toggle {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            padding: 8px 14px;
+            background: #444;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: white;
+            font-size: 18px;
+        }
+        select, button {
+            padding: 8px 10px;
+            font-size: 14px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        #backButton {
+            position: absolute;
+            bottom: 100px;
+            padding: 8px 16px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        /* Mobile Bottom Bar */
+        .mobile-bar { display: none; }
+
+        /* Footer */
+        .footer {
+            position: absolute; bottom: 10px;
+            font-size: 12px; color: rgba(200,200,200,0.5);
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(50,50,50,0.9); color: #fff;
+            padding: 10px 20px; border-radius: 6px;
+            font-size: 14px; opacity: 0; transition: opacity 0.5s;
+        }
+
+        /* Mobile Forced Class */
+        body.mobile .controls { display: none; }
+        body.mobile .sound-toggle { display: none; }
+        body.mobile .mobile-bar { 
+            display: flex;
+            position: fixed; bottom: 0; width: 100%;
+            background: rgba(30,30,30,0.95);
+            justify-content: space-around;
+            padding: 10px 0;
+            border-top: 1px solid rgba(255,255,255,0.2);
+        }
+        body.mobile .mobile-bar button, 
+        body.mobile .mobile-bar select {
+            font-size: 14px; padding: 8px; flex: 1; margin: 0 5px;
+        }
+        body.mobile #startButton { display: block; }
+    </style>
+</head>
+<body>
+    <!-- Logo Header -->
+    <div class="logo-header">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+            <circle cx="256" cy="256" r="240" fill="black"/>
+            <g transform="translate(256,256)">
+                <circle r="200" fill="none" stroke="#ffffff" stroke-width="20" stroke-dasharray="30 20"/>
+                <circle r="150" fill="none" stroke="#00c3ff" stroke-width="14" stroke-dasharray="20 15" transform="rotate(30)"/>
+                <text x="0" y="20" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="60" fill="#ffffff">W</text>
+            </g>
+        </svg>
+        <span>WordSpin</span>
+    </div>
+
+    <!-- Mobile Start Button -->
+    <button id="startButton">▶ Start Learning</button>
+
+    <!-- Desktop Controls -->
+    <div class="controls">
+        <label for="language">Language:</label>
+        <select id="language">
+            <option value="en">English</option><option value="es">Spanish</option>
+            <option value="fr">French</option><option value="it">Italian</option>
+            <option value="ru">Russian</option><option value="zh">Chinese</option>
+            <option value="hi">Hindi</option><option value="pt">Portuguese</option>
+            <option value="ja">Japanese</option><option value="tr">Turkish</option>
+            <option value="ar">Arabic</option>
+        </select>
+        <button onclick="setMode('sequential')">Sequential</button>
+        <button onclick="setMode('random')">Random</button>
+        <label for="intervalSelect">Interval:</label>
+        <select id="intervalSelect">
+            <option value="5">5</option><option value="10" selected>10</option>
+            <option value="15">15</option><option value="30">30</option>
+            <option value="60">60</option>
+        </select>
+    </div>
+    <button class="sound-toggle" id="soundToggle">🔊 Sound On</button>
+
+    <!-- Mobile Bottom Bar -->
+    <div class="mobile-bar">
+        <select id="language-mobile">
+            <option value="en">EN</option><option value="es">ES</option>
+            <option value="fr">FR</option><option value="it">IT</option>
+            <option value="ru">RU</option><option value="zh">ZH</option>
+            <option value="hi">HI</option><option value="pt">PT</option>
+            <option value="ja">JA</option><option value="tr">TR</option>
+            <option value="ar">AR</option>
+        </select>
+        <button onclick="setMode('sequential')">Seq</button>
+        <button onclick="setMode('random')">Rnd</button>
+        <select id="interval-mobile">
+            <option value="5">5s</option><option value="10" selected>10s</option>
+            <option value="15">15s</option><option value="30">30s</option>
+            <option value="60">60s</option>
+        </select>
+        <button onclick="toggleSound()">🔊</button>
+    </div>
+
+    <!-- Word & Translation -->
+    <div class="previous-box" id="previousBox">-</div>
+    <div class="word-container">
+        <div class="word-label" id="wordLabel">NEW WORD</div>
+        <div class="word" id="word">...</div>
+    </div>
+    <div class="translation" id="translation">...</div>
+    <button id="backButton" onclick="goBack()">← Previous Word</button>
+    <div class="footer">© 2025 All rights reserved | WordSpin by guelher.com</div>
+    <div class="toast" id="toast">Sound enabled, let's start learning!</div>
+
+    <script>
+        // Force Mobile Detection
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile) document.body.classList.add('mobile');
+
+        let words=[], index=0, mode='random', targetLang='en', targetVoice=null;
+        let timer, intervalDuration=10, previousWord="", previousTranslation="";
+        let lastWord="", lastTranslation="", soundEnabled=true, audioUnlocked=false;
+        let voices=[];
+
+        speechSynthesis.onvoiceschanged=()=>{voices=speechSynthesis.getVoices();selectVoiceForLang(targetLang);};
+        function selectVoiceForLang(lang){targetVoice=voices.find(v=>v.lang.toLowerCase().startsWith(lang))||null;}
+        function toggleSound(){soundEnabled=!soundEnabled;document.getElementById("soundToggle").textContent=soundEnabled?"🔊 Sound On":"🔇 Sound Off";}
+        function setMode(m){mode=m;}
+
+        // Event Listeners
+        document.getElementById("language").addEventListener("change",e=>{targetLang=e.target.value;selectVoiceForLang(targetLang);changeWord();});
+        document.getElementById("language-mobile").addEventListener("change",e=>{targetLang=e.target.value;selectVoiceForLang(targetLang);changeWord();});
+        document.getElementById("intervalSelect").addEventListener("change",e=>{intervalDuration=parseInt(e.target.value);restartTimer();});
+        document.getElementById("interval-mobile").addEventListener("change",e=>{intervalDuration=parseInt(e.target.value);restartTimer();});
+        document.getElementById("soundToggle").addEventListener("click",toggleSound);
+        document.getElementById("startButton").addEventListener("click",()=>{
+            audioUnlocked=true;
+            document.getElementById("startButton").style.display="none";
+            showToast("Sound enabled, let's start learning!");
+            changeWord(); restartTimer();
+        });
+
+        async function translateWord(word){
+            try{
+                const r=await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=de|${targetLang}`);
+                const d=await r.json(); return d?.responseData?.translatedText||"(Translation not found)";
+            }catch{return"(Translation error)";}
+        }
+
+        function speakWord(word,lang,voice=null){
+            if(!audioUnlocked||!soundEnabled)return;
+            const u=new SpeechSynthesisUtterance(word);
+            u.lang=lang; if(voice)u.voice=voice; u.rate=0.9; speechSynthesis.speak(u);
+        }
+
+        async function changeWord(){
+            previousWord=lastWord; previousTranslation=lastTranslation;
+            let selectedWord=(mode==='sequential')?words[index++%words.length]:words[Math.floor(Math.random()*words.length)];
+            const prevBox=document.getElementById("previousBox");
+            if(previousWord){prevBox.textContent=`${previousWord} - ${previousTranslation}`; prevBox.style.opacity="1"; setTimeout(()=>prevBox.style.opacity="0",3000);}
+            const w=document.getElementById("word"), wl=document.getElementById("wordLabel"), tr=document.getElementById("translation");
+            w.classList.remove("animate"); wl.classList.remove("fade-text"); tr.classList.remove("fade-text");
+            void w.offsetWidth;
+            w.textContent=selectedWord; w.classList.add("animate"); wl.classList.add("fade-text");
+            speakWord(selectedWord,'de-DE');
+            const translated=await translateWord(selectedWord); tr.textContent=translated; tr.classList.add("fade-text");
+            lastWord=selectedWord; lastTranslation=translated; if(targetVoice) speakWord(translated,targetVoice.lang,targetVoice);
+        }
+
+        function goBack(){
+            if(!previousWord)return;
+            const w=document.getElementById("word"), wl=document.getElementById("wordLabel"), tr=document.getElementById("translation");
+            w.classList.remove("animate"); wl.classList.remove("fade-text"); tr.classList.remove("fade-text");
+            void w.offsetWidth;
+            w.textContent=previousWord; w.classList.add("animate"); wl.classList.add("fade-text");
+            tr.textContent=previousTranslation; tr.classList.add("fade-text");
+            speakWord(previousWord,'de-DE'); if(targetVoice) speakWord(previousTranslation,targetVoice.lang,targetVoice);
+            restartTimer();
+        }
+
+        function restartTimer(){clearInterval(timer); timer=setInterval(changeWord,intervalDuration*1000);}
+        function showToast(msg){const t=document.getElementById("toast");t.textContent=msg;t.style.opacity=1; setTimeout(()=>t.style.opacity=0,2500);}
+
+        fetch('https://raw.githubusercontent.com/stnq3r/Wordspin/refs/heads/main/de_50k.txt')
+        .then(r=>r.text()).then(t=>{
+            words=t.split(/\r?\n/).filter(w=>w.trim()!=="");
+            if(!isMobile){ audioUnlocked=true; changeWord(); restartTimer(); } // Desktop auto-start
+        }).catch(e=>console.error("Word list could not be loaded:",e));
+    </script>
+</body>
+</html>
